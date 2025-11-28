@@ -10,3 +10,11 @@ export async function getAuthHeaders() {
     Authorization: token ? `Bearer ${token}` : "",
   };
 }
+
+export async function getApiKey() {
+
+  return {
+    "Content-Type": "application/json",
+    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+  };
+}

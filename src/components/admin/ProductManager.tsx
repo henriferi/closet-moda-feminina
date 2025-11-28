@@ -1,27 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Edit2, Trash2, Plus, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { products } from "@/data/mockData";
 import { Product } from "@/types/product";
 import { uploadToCloudinary } from "@/lib/cloudinary";
-import { getAuthHeaders } from "@/helpers/getAuthHeaders";
-
+import { getApiKey, getAuthHeaders } from "@/helpers/getAuthHeaders";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 const AVAILABLE_SIZES = ["P", "M", "G", "GG"];
 
 export const ProductManager = () => {
-  const [productList, setProductList] = useState(products);
+  const [productList, setProductList] = useState<Product[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const [formData, setFormData] = useState<Partial<Product>>({
     name: "",
@@ -86,9 +109,13 @@ export const ProductManager = () => {
 
     try {
       const method = editingProduct ? "PATCH" : "POST";
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/products${editingProduct ? `?id=eq.${editingProduct.id}` : ""}`;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/products${
+        editingProduct ? `?id=eq.${editingProduct.id}` : ""
+      }`;
 
       const headers = await getAuthHeaders();
+
+      console.log("Chamando fetch para:", url);
 
       const res = await fetch(url, {
         method,
@@ -103,13 +130,35 @@ export const ProductManager = () => {
         throw new Error("Erro ao salvar no Supabase");
       }
 
+      const [saved] = await res.json();
+
+      // Mapeia snake_case -> camelCase
+      const savedProduct: Product = {
+        id: saved.id,
+        name: saved.name,
+        description: saved.description,
+        price: saved.price,
+        category: saved.category,
+        isFeatured: saved.is_featured,
+        isBestSeller: saved.is_best_seller,
+        stock: saved.stock,
+        sizes: saved.sizes,
+        images: saved.images,
+        discount: saved.discount ?? 0,
+      };
+
+      setProductList((prev) =>
+        editingProduct
+          ? prev.map((p) => (p.id === savedProduct.id ? savedProduct : p))
+          : [...prev, savedProduct]
+      );
+
       toast({
         title: editingProduct ? "Produto atualizado!" : "Produto criado!",
         description: "Tudo certo!",
       });
 
       setIsDialogOpen(false);
-
     } catch (err) {
       toast({
         title: "Erro ao salvar",
@@ -119,18 +168,41 @@ export const ProductManager = () => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      const headers = await getAuthHeaders();
 
-  const handleDelete = (id: string) => {
-    setProductList(productList.filter(p => p.id !== id));
-    toast({
-      title: "Produto removido!",
-      description: "O produto foi excluído com sucesso.",
-    });
+      const url = `${
+        import.meta.env.VITE_SUPABASE_URL
+      }/rest/v1/products?id=eq.${id}`;
+
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (!res.ok) {
+        throw new Error("Erro ao deletar no Supabase");
+      }
+
+      setProductList((prev) => prev.filter((p) => p.id !== id));
+
+      toast({
+        title: "Produto removido!",
+        description: "O produto foi excluído com sucesso.",
+      });
+    } catch (err) {
+      toast({
+        title: "Erro ao remover",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const calculateDiscountedPrice = (price: number, discount?: number) => {
     if (!discount) return price;
-    return price - (price * discount / 100);
+    return price - (price * discount) / 100;
   };
 
   // TODO: Integrar com Cloudinary para upload de imagens
@@ -147,18 +219,59 @@ export const ProductManager = () => {
       const newImages = [...(formData.images || [""])];
       newImages[index] = imageUrl;
 
-
       setFormData({ ...formData, images: newImages });
 
       toast({
         title: "Imagem enviada!",
         description: "A imagem foi salva no Cloudinary.",
       });
-
     } catch (err) {
       toast({
         title: "Erro ao enviar imagem",
         description: "Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const headers = await getApiKey();
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/products`,
+        {
+          method: "GET",
+          headers,
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Erro ao buscar produtos no Supabase");
+      }
+
+      const data = await res.json();
+
+      // faça o mapeamento para o tipo Product em camelCase:
+      const mapped: Product[] = data.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        price: row.price,
+        category: row.category,
+        isFeatured: row.is_featured,
+        isBestSeller: row.is_best_seller,
+        stock: row.stock,
+        sizes: row.sizes,
+        images: row.images,
+        discount: row.discount ?? 0,
+      }));
+
+      setProductList(mapped);
+    } catch (err) {
+      toast({
+        title: "Erro ao carregar produtos",
+        description: "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
     }
@@ -172,13 +285,16 @@ export const ProductManager = () => {
 
   const removeImageField = (index: number) => {
     const newImages = (formData.images || []).filter((_, i) => i !== index);
-    setFormData({ ...formData, images: newImages.length > 0 ? newImages : [""] });
+    setFormData({
+      ...formData,
+      images: newImages.length > 0 ? newImages : [""],
+    });
   };
 
   const handleSizeToggle = (size: string) => {
     const currentSizes = formData.sizes || [];
     const newSizes = currentSizes.includes(size)
-      ? currentSizes.filter(s => s !== size)
+      ? currentSizes.filter((s) => s !== size)
       : [...currentSizes, size];
     setFormData({ ...formData, sizes: newSizes });
   };
@@ -206,7 +322,9 @@ export const ProductManager = () => {
                   <Label className="text-sm">Nome</Label>
                   <Input
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="text-sm"
                   />
                 </div>
@@ -214,7 +332,9 @@ export const ProductManager = () => {
                   <Label className="text-sm">Descrição</Label>
                   <Textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                     className="text-sm min-h-[80px]"
                   />
                 </div>
@@ -225,7 +345,12 @@ export const ProductManager = () => {
                       type="number"
                       step="0.01"
                       value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          price: parseFloat(e.target.value),
+                        })
+                      }
                       className="text-sm"
                     />
                   </div>
@@ -237,7 +362,12 @@ export const ProductManager = () => {
                       min="0"
                       max="100"
                       value={formData.discount || 0}
-                      onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          discount: parseFloat(e.target.value),
+                        })
+                      }
                       className="text-sm"
                     />
                   </div>
@@ -245,28 +375,54 @@ export const ProductManager = () => {
                 {formData.discount && formData.discount > 0 && (
                   <div className="p-3 bg-muted/50 rounded-md">
                     <p className="text-sm">
-                      Preço original: <span className="line-through">R$ {formData.price?.toFixed(2)}</span>
+                      Preço original:{" "}
+                      <span className="line-through">
+                        R$ {formData.price?.toFixed(2)}
+                      </span>
                     </p>
                     <p className="text-sm font-semibold text-primary-rose">
-                      Preço com desconto: R$ {calculateDiscountedPrice(formData.price || 0, formData.discount).toFixed(2)}
+                      Preço com desconto: R${" "}
+                      {calculateDiscountedPrice(
+                        formData.price || 0,
+                        formData.discount
+                      ).toFixed(2)}
                     </p>
                   </div>
                 )}
                 <div>
                   <Label className="text-sm">Categoria</Label>
-                  <Input
+                  <Select
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="text-sm"
-                  />
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, category: value })
+                    }
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="camisetas">Camisetas</SelectItem>
+                      <SelectItem value="calcas">Calças</SelectItem>
+                      <SelectItem value="vestidos">Vestidos</SelectItem>
+                      <SelectItem value="shorts">Shorts</SelectItem>
+                      <SelectItem value="acessorios">Acessórios</SelectItem>
+                      <SelectItem value="outros">Outros</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
                 <div>
                   <Label className="text-sm">Quantidade em Estoque</Label>
                   <Input
                     type="number"
                     min="0"
                     value={formData.stock || 0}
-                    onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        stock: parseInt(e.target.value) || 0,
+                      })
+                    }
                     className="text-sm"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
@@ -300,7 +456,9 @@ export const ProductManager = () => {
                             <div className="flex items-center gap-2 p-3 border-2 border-dashed border-border rounded-md hover:border-primary transition-colors bg-muted/30">
                               <Upload className="w-4 h-4 text-muted-foreground" />
                               <span className="text-xs sm:text-sm text-muted-foreground">
-                                {img ? `Imagem ${index + 1} carregada` : `Escolher imagem ${index + 1}`}
+                                {img
+                                  ? `Imagem ${index + 1} carregada`
+                                  : `Escolher imagem ${index + 1}`}
                               </span>
                             </div>
                           </Label>
@@ -339,11 +497,14 @@ export const ProductManager = () => {
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    * Mínimo 1 imagem, máximo 4 imagens. Upload temporário (implementar Cloudinary)
+                    * Mínimo 1 imagem, máximo 4 imagens. Upload temporário
+                    (implementar Cloudinary)
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm mb-3 block">Tamanhos Disponíveis</Label>
+                  <Label className="text-sm mb-3 block">
+                    Tamanhos Disponíveis
+                  </Label>
                   <div className="flex flex-wrap gap-3">
                     {AVAILABLE_SIZES.map((size) => (
                       <div key={size} className="flex items-center gap-2">
@@ -352,14 +513,18 @@ export const ProductManager = () => {
                           checked={(formData.sizes || []).includes(size)}
                           onCheckedChange={() => handleSizeToggle(size)}
                         />
-                        <Label htmlFor={`size-${size}`} className="text-sm cursor-pointer">
+                        <Label
+                          htmlFor={`size-${size}`}
+                          className="text-sm cursor-pointer"
+                        >
                           {size}
                         </Label>
                       </div>
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    * Selecione os tamanhos que estarão disponíveis para este produto
+                    * Selecione os tamanhos que estarão disponíveis para este
+                    produto
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -367,7 +532,10 @@ export const ProductManager = () => {
                     <Checkbox
                       checked={formData.isFeatured}
                       onCheckedChange={(checked) =>
-                        setFormData({ ...formData, isFeatured: checked as boolean })
+                        setFormData({
+                          ...formData,
+                          isFeatured: checked as boolean,
+                        })
                       }
                     />
                     <Label className="text-sm">Destaque</Label>
@@ -376,13 +544,20 @@ export const ProductManager = () => {
                     <Checkbox
                       checked={formData.isBestSeller}
                       onCheckedChange={(checked) =>
-                        setFormData({ ...formData, isBestSeller: checked as boolean })
+                        setFormData({
+                          ...formData,
+                          isBestSeller: checked as boolean,
+                        })
                       }
                     />
                     <Label className="text-sm">Mais Vendido</Label>
                   </div>
                 </div>
-                <Button variant="rose" onClick={handleSave} className="w-full text-sm h-10 sm:h-11">
+                <Button
+                  variant="rose"
+                  onClick={handleSave}
+                  className="w-full text-sm h-10 sm:h-11"
+                >
                   Salvar Produto
                 </Button>
               </div>
@@ -394,14 +569,26 @@ export const ProductManager = () => {
         {/* Mobile Card View */}
         <div className="block sm:hidden space-y-3">
           {productList.map((product) => (
-            <div key={product.id} className="p-3 bg-muted/50 rounded-md space-y-2">
+            <div
+              key={product.id}
+              className="p-3 bg-muted/50 rounded-md space-y-2"
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-sm truncate">{product.name}</h4>
-                  <p className="text-xs text-muted-foreground">{product.category}</p>
+                  <h4 className="font-semibold text-sm truncate">
+                    {product.name}
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    {product.category}
+                  </p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  <Button size="sm" variant="ghost" onClick={() => handleEdit(product)} className="h-8 w-8 p-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleEdit(product)}
+                    className="h-8 w-8 p-0"
+                  >
                     <Edit2 className="w-3 h-3" />
                   </Button>
                   <Button
@@ -415,15 +602,31 @@ export const ProductManager = () => {
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-primary-rose">R$ {product.price.toFixed(2)}</span>
+                <span className="font-semibold text-primary-rose">
+                  R$ {product.price.toFixed(2)}
+                </span>
                 <div className="flex gap-2">
-                  {product.isFeatured && <span className="px-2 py-0.5 bg-primary/10 rounded">Destaque</span>}
-                  {product.isBestSeller && <span className="px-2 py-0.5 bg-primary/10 rounded">Popular</span>}
+                  {product.isFeatured && (
+                    <span className="px-2 py-0.5 bg-primary/10 rounded">
+                      Destaque
+                    </span>
+                  )}
+                  {product.isBestSeller && (
+                    <span className="px-2 py-0.5 bg-primary/10 rounded">
+                      Popular
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Estoque:</span>
-                <span className={`font-semibold ${(product.stock || 0) === 0 ? 'text-destructive' : 'text-foreground'}`}>
+                <span
+                  className={`font-semibold ${
+                    (product.stock || 0) === 0
+                      ? "text-destructive"
+                      : "text-foreground"
+                  }`}
+                >
                   {product.stock || 0} unidades
                 </span>
               </div>
@@ -452,7 +655,11 @@ export const ProductManager = () => {
                   <TableCell>{product.category}</TableCell>
                   <TableCell>R$ {product.price.toFixed(2)}</TableCell>
                   <TableCell>
-                    <span className={`font-semibold ${(product.stock || 0) === 0 ? 'text-destructive' : ''}`}>
+                    <span
+                      className={`font-semibold ${
+                        (product.stock || 0) === 0 ? "text-destructive" : ""
+                      }`}
+                    >
                       {product.stock || 0}
                     </span>
                   </TableCell>
@@ -460,7 +667,11 @@ export const ProductManager = () => {
                   <TableCell>{product.isBestSeller ? "Sim" : "Não"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => handleEdit(product)}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleEdit(product)}
+                      >
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
