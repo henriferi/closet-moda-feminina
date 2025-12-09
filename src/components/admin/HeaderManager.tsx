@@ -1,62 +1,166 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Edit2, Save, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { loopingTexts } from "@/data/mockData";
+import { getApiKey, getAuthHeaders } from "@/helpers/getAuthHeaders";
 
 export const HeaderManager = () => {
-  const [texts, setTexts] = useState(loopingTexts);
+  const [texts, setTexts] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [newText, setNewText] = useState("");
   const { toast } = useToast();
 
-  const handleEdit = (id: string, currentText: string) => {
-    setEditingId(id);
-    setEditValue(currentText);
+  const BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/header_promos`;
+
+  // ============================
+  // 1. LOAD DATA (SELECT *)
+  // ============================
+  const loadData = async () => {
+    try {
+      const headers = await getApiKey();
+
+      const res = await fetch(`${BASE_URL}?select=*`, {
+        headers,
+      });
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      setTexts(data);
+    } catch {
+      toast({
+        title: "Erro ao carregar textos",
+        description: "Não foi possível carregar os textos do header.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSave = (id: string) => {
-    setTexts(texts.map(t => t.id === id ? { ...t, text: editValue } : t));
-    setEditingId(null);
-    toast({
-      title: "Texto atualizado!",
-      description: "As alterações foram salvas com sucesso.",
-    });
-  };
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const handleAdd = () => {
+  // ============================
+  // 2. ADD NEW TEXT (POST)
+  // ============================
+  const handleAdd = async () => {
     if (!newText.trim()) return;
-    
-    const newItem = {
-      id: String(Date.now()),
-      text: newText,
-    };
-    
-    setTexts([...texts, newItem]);
-    setNewText("");
-    toast({
-      title: "Texto adicionado!",
-      description: "O novo texto foi adicionado ao banner.",
-    });
+
+    try {
+      const headers = await getAuthHeaders();
+
+      const payload = {
+        text: newText,
+        is_active: true,
+      };
+
+      const res = await fetch(BASE_URL, {
+        method: "POST",
+        headers: {
+          ...headers,
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      const created = data[0];
+
+      setTexts([...texts, created]);
+      setNewText("");
+
+      toast({
+        title: "Texto adicionado!",
+        description: "O novo texto foi salvo.",
+      });
+    } catch {
+      toast({
+        title: "Erro ao adicionar",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setTexts(texts.filter(t => t.id !== id));
-    toast({
-      title: "Texto removido!",
-      description: "O texto foi removido do banner.",
-    });
+  // ============================
+  // 3. EDIT TEXT (PATCH)
+  // ============================
+  const handleSave = async (id: string) => {
+    try {
+      const headers = await getAuthHeaders();
+
+      const res = await fetch(`${BASE_URL}?id=eq.${id}`, {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({ text: editValue }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      const updated = data[0];
+
+      setTexts(texts.map((item) => (item.id === id ? updated : item)));
+
+      toast({
+        title: "Texto atualizado!",
+        description: "As alterações foram salvas.",
+      });
+    } catch {
+      toast({
+        title: "Erro ao atualizar",
+        variant: "destructive",
+      });
+    }
+
+    setEditingId(null);
   };
 
+  // ============================
+  // 4. DELETE (DELETE)
+  // ============================
+  const handleDelete = async (id: string) => {
+    try {
+      const headers = await getAuthHeaders();
+
+      const res = await fetch(`${BASE_URL}?id=eq.${id}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (!res.ok) throw new Error();
+
+      setTexts(texts.filter((t) => t.id !== id));
+
+      toast({
+        title: "Texto removido!",
+        description: "O item foi excluído.",
+      });
+    } catch {
+      toast({
+        title: "Erro ao excluir",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // ============================
+  // UI (sem mudanças)
+  // ============================
   return (
     <Card>
       <CardHeader>
         <CardTitle>Header Promocional</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+
         {/* Add New Text */}
         <div className="flex gap-2">
           <Input
@@ -98,7 +202,10 @@ export const HeaderManager = () => {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => handleEdit(item.id, item.text)}
+                    onClick={() => {
+                      setEditingId(item.id);
+                      setEditValue(item.text);
+                    }}
                   >
                     <Edit2 className="w-4 h-4" />
                   </Button>
