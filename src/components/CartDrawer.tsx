@@ -1,4 +1,12 @@
-import { ShoppingCart, Trash2, Minus, Plus, ShoppingBag, Tag, X } from "lucide-react";
+import {
+  ShoppingCart,
+  Trash2,
+  Minus,
+  Plus,
+  ShoppingBag,
+  Tag,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,7 +19,6 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { coupons } from "@/data/coupons";
 import { useToast } from "@/hooks/use-toast";
 
 export const CartDrawer = () => {
@@ -30,24 +37,36 @@ export const CartDrawer = () => {
   } = useCart();
   const [couponCode, setCouponCode] = useState("");
   const { toast } = useToast();
+  const { validateCoupon } = useCart();
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     const trimmedCode = couponCode.trim().toUpperCase();
-    const coupon = coupons.find(
-      (c) => c.codigo.toUpperCase() === trimmedCode && c.ativo
-    );
 
-    if (coupon) {
+    if (!trimmedCode) return;
+
+    try {
+      const coupon = await validateCoupon(trimmedCode);
+
+      if (!coupon) {
+        toast({
+          title: "Cupom inválido",
+          description: "O cupom informado não existe ou está expirado.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       applyCoupon(coupon);
       setCouponCode("");
+
       toast({
         title: "Cupom aplicado!",
-        description: `Desconto de ${coupon.desconto}% aplicado com sucesso.`,
+        description: `Desconto de ${coupon.discount_percentage}% aplicado com sucesso.`,
       });
-    } else {
+    } catch (err) {
       toast({
-        title: "Cupom inválido",
-        description: "O cupom informado não existe ou está expirado.",
+        title: "Erro ao aplicar cupom",
+        description: "Verifique o código ou tente novamente.",
         variant: "destructive",
       });
     }
@@ -74,13 +93,15 @@ export const CartDrawer = () => {
       .join("\n\n");
 
     let totalMessage = `\n\n*Subtotal: R$ ${getSubtotal().toFixed(2)}*`;
-    
+
     if (appliedCoupon) {
-      totalMessage += `\n*Desconto (${appliedCoupon.desconto}%): -R$ ${getDiscount().toFixed(2)}*`;
+      totalMessage += `\n*Desconto (${
+        appliedCoupon.discount_percentage
+      }%): -R$ ${getDiscount().toFixed(2)}*`;
     }
-    
+
     totalMessage += `\n\n*TOTAL: R$ ${getTotal().toFixed(2)}*`;
-    
+
     const greeting = "Olá! Gostaria de finalizar meu pedido:\n\n";
 
     return encodeURIComponent(greeting + message + totalMessage);
@@ -204,7 +225,7 @@ export const CartDrawer = () => {
                     <div className="flex items-center gap-2 p-3 bg-primary-rose/10 border border-primary-rose/20 rounded-lg">
                       <Tag className="h-4 w-4 text-primary-rose" />
                       <span className="text-sm font-medium flex-1">
-                        {appliedCoupon.codigo} ({appliedCoupon.desconto}% OFF)
+                        {appliedCoupon.code} ({appliedCoupon.discount_percentage}% OFF)
                       </span>
                       <Button
                         size="icon"
@@ -247,7 +268,7 @@ export const CartDrawer = () => {
                   </div>
                   {appliedCoupon && (
                     <div className="flex justify-between text-sm text-primary-rose">
-                      <span>Desconto ({appliedCoupon.desconto}%):</span>
+                      <span>Desconto ({appliedCoupon.discount_percentage}%):</span>
                       <span>-R$ {getDiscount().toFixed(2)}</span>
                     </div>
                   )}

@@ -1,6 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 import { Product } from "@/types/product";
 import { Coupon } from "@/types/coupon";
+import { fetchValidCoupon } from "@/helpers/coupons";
 
 export interface CartItem {
   product: Product;
@@ -21,6 +28,7 @@ interface CartContextType {
   getDiscount: () => number;
   getTotal: () => number;
   getItemCount: () => number;
+  validateCoupon: (code: string) => Promise<Coupon | null>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -67,11 +75,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const removeItem = (productId: string, size: string) => {
     setItems((prev) =>
-      prev.filter((item) => !(item.product.id === productId && item.size === size))
+      prev.filter(
+        (item) => !(item.product.id === productId && item.size === size)
+      )
     );
   };
 
-  const updateQuantity = (productId: string, size: string, quantity: number) => {
+  const updateQuantity = (
+    productId: string,
+    size: string,
+    quantity: number
+  ) => {
     if (quantity <= 0) {
       removeItem(productId, size);
       return;
@@ -91,6 +105,28 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setAppliedCoupon(null);
   };
 
+  const validateCoupon = async (code: string): Promise<Coupon | null> => {
+    try {
+      const coupon = await fetchValidCoupon(code);
+
+      if (!coupon) return null;
+
+      return {
+        id: coupon.id,
+        code: coupon.code,
+        discount_percentage: coupon.discount_percentage,
+        min_purchase: coupon.min_purchase ?? null,
+        max_uses: coupon.max_uses ?? null,
+        current_uses: coupon.current_uses ?? null,
+        valid_from: coupon.valid_from ?? null,
+        valid_until: coupon.valid_until ?? null,
+        is_active: coupon.is_active,
+      };
+    } catch (err) {
+      return null;
+    }
+  };
+
   const applyCoupon = (coupon: Coupon) => {
     setAppliedCoupon(coupon);
   };
@@ -100,12 +136,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getSubtotal = () => {
-    return items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+    return items.reduce(
+      (sum, item) => sum + item.product.price * item.quantity,
+      0
+    );
   };
 
   const getDiscount = () => {
     if (!appliedCoupon) return 0;
-    return (getSubtotal() * appliedCoupon.desconto) / 100;
+    return (getSubtotal() * appliedCoupon.discount_percentage) / 100;
   };
 
   const getTotal = () => {
@@ -131,6 +170,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         getDiscount,
         getTotal,
         getItemCount,
+        validateCoupon,
       }}
     >
       {children}
