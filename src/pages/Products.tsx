@@ -67,6 +67,7 @@ const Products = () => {
       }
     };
 
+    setLoading(false);
     fetchProducts();
   }, []);
 

@@ -2,19 +2,58 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X, Diamond } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { loopingTexts } from "@/data/mockData";
 import { CartDrawer } from "@/components/CartDrawer";
+import { getApiKey } from "@/helpers/getAuthHeaders";
+
+type LoopingText = {
+  id: string;
+  text: string;
+  order_position: number | null;
+  is_active: boolean;
+  created_at: string;
+};
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [loopingTexts, setLoopingTexts] = useState<LoopingText[]>([]);
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
 
   useEffect(() => {
+    const fetchLoopingTexts = async () => {
+      try {
+        const headers = await getApiKey();
+
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/header_promos?is_active=eq.true&order=order_position.asc`,
+          {
+            method: "GET",
+            headers,
+          }
+        );
+
+        if (!res.ok) throw new Error("Erro ao carregar textos do header");
+
+        const data = await res.json();
+
+        setLoopingTexts(data);
+      } catch (err) {
+        console.error("Erro ao buscar looping texts:", err);
+      }
+    };
+
+    fetchLoopingTexts();
+  }, []);
+
+  // Troca automática
+  useEffect(() => {
+    if (loopingTexts.length === 0) return;
+
     const interval = setInterval(() => {
       setCurrentTextIndex((prev) => (prev + 1) % loopingTexts.length);
     }, 4000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [loopingTexts]);
 
   const menuItems = [
     { name: "Início", path: "/" },
@@ -26,13 +65,15 @@ export const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       {/* Looping Text Banner */}
-      <div className="gradient-rose py-2 overflow-hidden">
-        <div className="container mx-auto px-4">
-          <p className="text-center text-sm text-secondary-foreground font-medium transition-smooth">
-            {loopingTexts[currentTextIndex].text}
-          </p>
+      {loopingTexts.length > 0 && (
+        <div className="gradient-rose py-2 overflow-hidden">
+          <div className="container mx-auto px-4">
+            <p className="text-center text-sm text-secondary-foreground font-medium transition-smooth">
+              {loopingTexts[currentTextIndex]?.text}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Header */}
       <div className="container mx-auto px-4">
