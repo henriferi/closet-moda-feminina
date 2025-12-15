@@ -127,12 +127,6 @@ export default function Login() {
             </Button>
           </form>
 
-          {/* Development Credentials */}
-          <div className="mt-6 p-4 bg-muted/50 rounded-md">
-            <p className="text-xs text-muted-foreground text-center">
-              <strong>Desenvolvimento:</strong> admin@closet.com / admin123
-            </p>
-          </div>
         </div>
       </div>
     </div>

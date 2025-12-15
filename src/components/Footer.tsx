@@ -43,27 +43,27 @@ export const Footer = () => {
             <h3 className="font-serif text-lg font-semibold mb-4">Contato</h3>
             <div className="flex flex-col gap-3">
               <a
-                href="mailto:contato@closetmodafeminina.com.br"
+                href="mailto:lojaclosett.adm@gmail.com"
                 className="flex items-center gap-2 text-sm hover:text-primary-rose transition-smooth"
               >
                 <Mail className="w-4 h-4" />
-                contato@closetmodafeminina.com.br
+                lojaclosett.adm@gmail.com
               </a>
               <a
-                href="tel:+5511999999999"
+                href="tel:+5581985948766"
                 className="flex items-center gap-2 text-sm hover:text-primary-rose transition-smooth"
               >
                 <Phone className="w-4 h-4" />
-                (11) 99999-9999
+                (81) 98594-8766
               </a>
               <a
-                href="https://instagram.com"
+                href="https://www.instagram.com/lojaclosett_/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm hover:text-primary-rose transition-smooth"
               >
                 <Instagram className="w-4 h-4" />
-                @closetmodafeminina
+                @lojaclosett_
               </a>
             </div>
           </div>

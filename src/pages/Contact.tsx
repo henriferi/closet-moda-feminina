@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import contactImage from "@/assets/contact-whatsapp.jpg";
 
 const Contact = () => {
-  const whatsappNumber = "5511999999999";
+  const whatsappNumber = "5581985948766";
   const whatsappMessage = "Olá! Gostaria de mais informações sobre os produtos.";
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
 
@@ -70,10 +70,10 @@ const Contact = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">E-mail</h3>
                     <a
-                      href="mailto:contato@closetmodafeminina.com.br"
+                      href="mailto:lojaclosett.adm@gmail.com"
                       className="text-muted-foreground hover:text-primary-rose transition-smooth"
                     >
-                      contato@closetmodafeminina.com.br
+                      lojaclosett.adm@gmail.com
                     </a>
                   </div>
                 </div>
@@ -87,10 +87,10 @@ const Contact = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">Telefone / WhatsApp</h3>
                     <a
-                      href="tel:+5511999999999"
+                      href="tel:+5581985948766"
                       className="text-muted-foreground hover:text-primary-rose transition-smooth"
                     >
-                      (11) 99999-9999
+                      (81) 98594-8766
                     </a>
                   </div>
                 </div>
@@ -104,12 +104,12 @@ const Contact = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">Redes Sociais</h3>
                     <a
-                      href="https://instagram.com"
+                      href="https://www.instagram.com/lojaclosett_/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-muted-foreground hover:text-primary-rose transition-smooth"
                     >
-                      @closetmodafeminina
+                      @lojaclosett_
                     </a>
                   </div>
                 </div>
@@ -123,8 +123,7 @@ const Contact = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">Horário de Atendimento</h3>
                     <p className="text-muted-foreground">
-                      Segunda a Sexta: 9h às 18h<br />
-                      Sábado: 9h às 14h
+                      Segunda a Sabado: 10h às 18h<br />
                     </p>
                   </div>
                 </div>
