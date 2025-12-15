@@ -108,7 +108,7 @@ export const CartDrawer = () => {
   };
 
   const handleWhatsAppCheckout = () => {
-    const phone = "5511999999999"; // Substitua pelo número real do WhatsApp
+    const phone = "558198594-8766";
     const message = formatWhatsAppMessage();
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
     clearCart();
