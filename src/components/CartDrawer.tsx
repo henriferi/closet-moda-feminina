@@ -39,6 +39,14 @@ export const CartDrawer = () => {
   const { toast } = useToast();
   const { validateCoupon } = useCart();
 
+  const [deliveryType, setDeliveryType] = useState<"retirada" | "entrega">(
+    "retirada"
+  );
+  const [address, setAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<
+    "credito" | "debito" | "dinheiro" | "pix" | ""
+  >("");
+
   const handleApplyCoupon = async () => {
     const trimmedCode = couponCode.trim().toUpperCase();
 
@@ -87,29 +95,56 @@ export const CartDrawer = () => {
           `*${item.product.name}*\n` +
           `Tamanho: ${item.size}\n` +
           `Quantidade: ${item.quantity}\n` +
-          `Preço unitário: R$ ${item.product.price.toFixed(2)}\n` +
           `Subtotal: R$ ${(item.product.price * item.quantity).toFixed(2)}`
       )
       .join("\n\n");
 
-    let totalMessage = `\n\n*Subtotal: R$ ${getSubtotal().toFixed(2)}*`;
+    let totalMessage = `\n\n*Subtotal:* R$ ${getSubtotal().toFixed(2)}`;
 
     if (appliedCoupon) {
       totalMessage += `\n*Desconto (${
         appliedCoupon.discount_percentage
-      }%): -R$ ${getDiscount().toFixed(2)}*`;
+      }%):* -R$ ${getDiscount().toFixed(2)}`;
     }
 
-    totalMessage += `\n\n*TOTAL: R$ ${getTotal().toFixed(2)}*`;
+    totalMessage += `\n*TOTAL:* R$ ${getTotal().toFixed(2)}`;
+
+    // 👉 Forma de entrega
+    const deliveryMessage =
+      deliveryType === "retirada"
+        ? `\n\n*Tipo de Entrega:* Retirada no local`
+        : `\n\n*Tipo de Entrega:* Frete\n*Endereço:* ${address}`;
+
+    // 👉 Forma de pagamento
+    const paymentMessage = `\n\n*Forma de pagamento:* ${paymentMethod.toUpperCase()}`;
 
     const greeting = "Olá! Gostaria de finalizar meu pedido:\n\n";
 
-    return encodeURIComponent(greeting + message + totalMessage);
+    return encodeURIComponent(
+      greeting + message + totalMessage + deliveryMessage + paymentMessage
+    );
   };
 
   const handleWhatsAppCheckout = () => {
-    const phone = "558198594-8766";
+    if (!paymentMethod) {
+      toast({
+        title: "Escolha a forma de pagamento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (deliveryType === "entrega" && !address.trim()) {
+      toast({
+        title: "Informe o endereço de entrega",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const phone = "5581985948766";
     const message = formatWhatsAppMessage();
+
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
     clearCart();
   };
@@ -225,7 +260,8 @@ export const CartDrawer = () => {
                     <div className="flex items-center gap-2 p-3 bg-primary-rose/10 border border-primary-rose/20 rounded-lg">
                       <Tag className="h-4 w-4 text-primary-rose" />
                       <span className="text-sm font-medium flex-1">
-                        {appliedCoupon.code} ({appliedCoupon.discount_percentage}% OFF)
+                        {appliedCoupon.code} (
+                        {appliedCoupon.discount_percentage}% OFF)
                       </span>
                       <Button
                         size="icon"
@@ -260,6 +296,68 @@ export const CartDrawer = () => {
                   )}
                 </div>
 
+                {/* Forma de entrega */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Forma de entrega</p>
+
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="radio"
+                        name="delivery"
+                        checked={deliveryType === "retirada"}
+                        onChange={() => setDeliveryType("retirada")}
+                      />
+                      Retirada
+                    </label>
+
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="radio"
+                        name="delivery"
+                        checked={deliveryType === "entrega"}
+                        onChange={() => setDeliveryType("entrega")}
+                      />
+                      Entrega
+                    </label>
+                  </div>
+
+                  {deliveryType === "entrega" && (
+                    <Input
+                      placeholder="Digite o endereço de entrega"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                  )}
+                </div>
+
+                {/* Forma de pagamento */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Forma de pagamento</p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: "Cartão de Crédito", value: "credito" },
+                      { label: "Cartão de Débito", value: "debito" },
+                      { label: "Dinheiro", value: "dinheiro" },
+                      { label: "Pix", value: "pix" },
+                    ].map((option) => (
+                      <label
+                        key={option.value}
+                        className="flex items-center gap-2 text-sm cursor-pointer"
+                      >
+                        <input
+                          type="radio"
+                          name="payment"
+                          checked={paymentMethod === option.value}
+                          onChange={() => setPaymentMethod(option.value as any)}
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Resumo de valores */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
@@ -268,7 +366,9 @@ export const CartDrawer = () => {
                   </div>
                   {appliedCoupon && (
                     <div className="flex justify-between text-sm text-primary-rose">
-                      <span>Desconto ({appliedCoupon.discount_percentage}%):</span>
+                      <span>
+                        Desconto ({appliedCoupon.discount_percentage}%):
+                      </span>
                       <span>-R$ {getDiscount().toFixed(2)}</span>
                     </div>
                   )}
